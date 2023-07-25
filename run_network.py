@@ -34,6 +34,7 @@ HVC_SYNAPTIC_CONSTANTS_DICT = {
     "fast_cond_tau": 1.,
     "last_event_buffer": 10 / DT # last HVC neuron should spike XXX ms before the end of the song
 }
+
 def HVC_output_generator(self):
     spike_timings = np.linspace(0, SONG_TIME_POINTS-self.synaptic_constants["last_event_buffer"], self.number_of_neurons)
     for row, spike in enumerate(spike_timings):
@@ -49,14 +50,19 @@ HVC = Layer(
 HVC.generate_template = types.MethodType( generate_synaptic_template, HVC )
 HVC.generate_output = types.MethodType( HVC_output_generator, HVC )
 
+
 """
 Initiate RA layer
 This includes defining the specific RA conductance calculation method and adding it to the RA instance
 """
 NEURON_NUMBER_RA = 10
 RA_SYNAPTIC_CONSTANTS_DICT = {}
-def RA_conductance_calc(self):
-    pass
+
+def RA_conductance_calc(self, t):
+    if t == 0: # Base case
+        pass
+    else:
+        return self
 
 RA = Layer(
     number_of_neurons=NEURON_NUMBER_RA,
@@ -67,18 +73,65 @@ RA = Layer(
 RA.conductance_calculation = types.MethodType( RA_conductance_calc, RA )
 
 
+"""
+Initiate motor neuron layer
+"""
+NEURON_NUMBER_MN = 2
+MN_synaptic_dict = {}
+
+MotorPool = Layer(
+    number_of_neurons=NEURON_NUMBER_MN,
+    number_of_inputs=RA.number_of_neurons,
+    synaptic_constants=MN_synaptic_dict
+)
+
+
+"""
+Initiate LMAN
+LMAN has its own firing properites/pattern, so functions must be defined and added as methods to the LMAN layer instance
+"""
+NEURON_NUMBER_LMAN = 1
+LMAN_synaptic_dict = {
+    "slow_cond_const": 1.,
+    "slow_cond_tau": 5.,
+    "fast_cond_const": 1.,
+    "fast_cond_tau": 1.,
+    "firing_rate": 0.08 # 80 Hz, in ms
+}
+
+def LMAN_output_generator(self):
+    outputs_random_template = np.random.rand(self.number_of_neurons, int(SONG_TIME_POINTS))
+    spike_times = ((self.synaptic_constants["firing_rate"]) * DT) > outputs_random_template
+    for neuron in range(self.number_of_neurons):
+        temp_row = np.convolve(spike_times[neuron, :], self.conductance_template)
+        self.outputs[neuron, :] = temp_row[:int(SONG_TIME_POINTS)]
+    return self
+
+LMAN = Layer(
+    number_of_neurons=NEURON_NUMBER_LMAN,
+    number_of_inputs=MotorPool.number_of_neurons,
+    synaptic_constants=LMAN_synaptic_dict
+)
+
+LMAN.generate_template = types.MethodType( generate_synaptic_template, LMAN )
+LMAN.generate_output = types.MethodType( LMAN_output_generator, LMAN )
+
+
+# Here's a function that will actually run the program itself, called with __name__ == "__main__"
 def run_network():
     NUMBER_OF_SONGS = 1000
-    # Before any song production, intiate inputs/outputs for HVC and RA
+    # Before any song production, intiate inputs/outputs matrices for HVC, RA and LMAN
     HVC.initiate_outputs()
     HVC.generate_template()
     HVC.generate_output()
-
     RA.generage_synaptic_weights()
     RA.initiate_outputs()
+    LMAN.initiate_outputs()
+    LMAN.generate_template()
 
     for song in NUMBER_OF_SONGS:
-        Bird.sing()
+        Bird.sing(HVC=HVC, RA=RA, LMAN=LMAN)
+
 
 if __name__ == "__main__":
     run_network()
