@@ -85,7 +85,6 @@ class Bird:
     def sing(self, HVC, RA, LMAN, time_points=SONG_TIME_POINTS):
         dW = np.zeros((RA.number_of_neurons, HVC.number_of_neurons))
         HVC_RA_projections = RA.synaptic_weights @ HVC.outputs # matmul shorthand
-        LMAN.generate_output()
         """ With each song bout calculate the following @tn:
         - RA inputs received
         - RA total activity for inhibitory conductances from prior time steps' firing

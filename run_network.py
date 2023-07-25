@@ -16,9 +16,13 @@ def generate_synaptic_template(self):
     # First, universal lambda function for calculating synaptic conductance at time t
     # t = time, cc = conductance const, ct = conductance tau, s = slow and f = fast
     g = lambda t, cc_s, ct_s, cc_f, ct_f : (cc_s * np.exp(t/-ct_s)) - (cc_f * np.exp(t/-ct_f))
-    self.template = [
+    spike_train_array = np.zeros(int(SONG_TIME_POINTS))
+    np.put(spike_train_array, [int(spike * self.synaptic_constants["spike_train_isi"] / DT) for spike in range(self.synaptic_consants["spikes_per_train"])], [1.]*self.synaptic_constants["spikes_per_train"])
+    single_event_template = [
         g(t, self.synaptic_constants["slow_cond_const"], self.synaptic_constants["slow_cond_tau"], self.synaptic_constants["fast_cond_const"], self.synapyic_constants["fast_cond_tau"]) for t in SONG_TIME_POINTS
     ]
+    train_template = np.convolve(spike_train_array, single_event_template)
+    self.template = train_template[:int(SONG_TIME_POINTS)]
     return self
 
 """
@@ -32,7 +36,9 @@ HVC_SYNAPTIC_CONSTANTS_DICT = {
     "slow_cond_tau": 5.,
     "fast_cond_const": 1.,
     "fast_cond_tau": 1.,
-    "last_event_buffer": 10 / DT # last HVC neuron should spike XXX ms before the end of the song
+    "last_event_buffer": 10 / DT, # last HVC neuron should spike XXX ms before the end of the song
+    "spike_train_isi": 2, # ms between spikes in spike train
+    "spikes_per_train": 3
 }
 
 def HVC_output_generator(self):
@@ -53,10 +59,13 @@ HVC.generate_output = types.MethodType( HVC_output_generator, HVC )
 
 """
 Initiate RA layer
-This includes defining the specific RA conductance calculation method and adding it to the RA instance
+This includes defining the specific RA conductance calculation method and leaky-integrate-and-fire method and adding them to the RA instance
 """
 NEURON_NUMBER_RA = 10
 RA_SYNAPTIC_CONSTANTS_DICT = {}
+
+def RA_leaky_integrate_fire(self, t):
+    pass
 
 def RA_conductance_calc(self, t):
     if t == 0: # Base case
@@ -71,6 +80,7 @@ RA = Layer(
 )
 
 RA.conductance_calculation = types.MethodType( RA_conductance_calc, RA )
+RA.leaky_integrate_and_fire = types.MethodType( RA_leaky_integrate_fire, RA )
 
 
 """
@@ -96,7 +106,9 @@ LMAN_synaptic_dict = {
     "slow_cond_tau": 5.,
     "fast_cond_const": 1.,
     "fast_cond_tau": 1.,
-    "firing_rate": 0.08 # 80 Hz, in ms
+    "firing_rate": 0.08, # 80 Hz, in ms
+    "spike_train_isi": 0,
+    "spikes_per_train": 1
 }
 
 def LMAN_output_generator(self):
@@ -120,7 +132,7 @@ LMAN.generate_output = types.MethodType( LMAN_output_generator, LMAN )
 # Here's a function that will actually run the program itself, called with __name__ == "__main__"
 def run_network():
     NUMBER_OF_SONGS = 1000
-    # Before any song production, intiate inputs/outputs matrices for HVC, RA and LMAN
+    # Before any song production, intiate inputs/outputs matrices for HVC, RA and LMAN and template for synaptic events
     HVC.initiate_outputs()
     HVC.generate_template()
     HVC.generate_output()
@@ -130,6 +142,7 @@ def run_network():
     LMAN.generate_template()
 
     for song in NUMBER_OF_SONGS:
+        LMAN.generate_output()
         Bird.sing(HVC=HVC, RA=RA, LMAN=LMAN)
 
 
