@@ -67,7 +67,16 @@ class Bird:
     motor_out_template_2: np.array([])
 
     def calculate_RA_firing(self, RA, HVC_RA_projections, LMAN_projections, time_step):
-        next_time_step = time_step + 1
+        next_time_step = int(time_step + 1)
+        excitatory_conductance = 0.24 * (HVC_RA_projections + LMAN_projections)
+        inhibitory_conductance = (0.2 / RA.number_of_neurons) * np.sum(RA.synaptic_activations[:,time_step])
+        dV = DT * ( (-RA.synaptic_constants["leak_conductance"] * (RA.outputs[:, time_step] - RA.synaptic_constants["leak_voltage"])) - (excitatory_conductance * (RA.outputs[:, time_step] - RA.synaptic_constants["exc_reversal_pot"])) - (inhibitory_conductance * (RA.outputs[:, time_step] - RA.synaptic_constants["inh_reversal_pot"])) )
+        RA.outputs[:, next_time_step] = RA.outputs[:, time_step] + dV
+        # Now check for APs on this or previous time_steps
+        RA.outputs[:, next_time_step] = np.where(RA.outputs[:, next_time_step] > RA.synaptic_constants["threshold_voltage"], RA.synaptic_constants["peak_voltage"], RA.outputs[:, next_time_step])
+        RA.synaptic_activations[:, next_time_step] = DT * RA.synaptic_activations[:, time_step] / RA.synaptic_constants["membrane_tau"]
+        if time_step > 0:
+            RA.synaptic_activations[:, next_time_step] = np.where(RA.outputs[:, time_step] == RA.synaptic_constants["peak_voltage"], RA.synaptic_activations[:, time_step] + 1, RA.synaptic_activations[:, time_step])
         return self
     
     def calculate_MN_outputs(self):

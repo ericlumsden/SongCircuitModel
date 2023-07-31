@@ -19,7 +19,7 @@ def generate_synaptic_template(self):
     spike_train_array = np.zeros(int(SONG_TIME_POINTS))
     np.put(spike_train_array, [int(spike * self.synaptic_constants["spike_train_isi"] / DT) for spike in range(self.synaptic_consants["spikes_per_train"])], [1.]*self.synaptic_constants["spikes_per_train"])
     single_event_template = [
-        g(t, self.synaptic_constants["slow_cond_const"], self.synaptic_constants["slow_cond_tau"], self.synaptic_constants["fast_cond_const"], self.synapyic_constants["fast_cond_tau"]) for t in SONG_TIME_POINTS
+        g(t, self.synaptic_constants["slow_cond_const"], self.synaptic_constants["slow_cond_tau"], self.synaptic_constants["fast_cond_const"], self.synaptic_constants["fast_cond_tau"]) for t in SONG_TIME_POINTS
     ]
     train_template = np.convolve(spike_train_array, single_event_template)
     self.template = train_template[:int(SONG_TIME_POINTS)]
@@ -62,7 +62,15 @@ Initiate RA layer
 This includes defining the specific RA conductance calculation method and leaky-integrate-and-fire method and adding them to the RA instance
 """
 NEURON_NUMBER_RA = 10
-RA_SYNAPTIC_CONSTANTS_DICT = {}
+RA_SYNAPTIC_CONSTANTS_DICT = {
+    "leak_condutance": ,
+    "leak_voltage": ,
+    "exc_reversal_pot": ,
+    "inh_reversal_pot": ,
+    "threshold_voltage": ,
+    "peak_voltage": ,
+    "membrane_tau":
+    }
 
 def RA_leaky_integrate_fire(self, t):
     pass
@@ -81,6 +89,7 @@ RA = Layer(
 
 RA.conductance_calculation = types.MethodType( RA_conductance_calc, RA )
 RA.leaky_integrate_and_fire = types.MethodType( RA_leaky_integrate_fire, RA )
+RA.synaptic_activations = np.zeros(NEURON_NUMBER_RA, SONG_TIME_POINTS)
 
 
 """
